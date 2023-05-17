@@ -107,7 +107,7 @@ import cv2
 import numpy as np
 import os
 
-
+from math import ceil
 
 from moviepy.editor import *
 
@@ -119,15 +119,19 @@ def img_convert_video(i_v_dict):
         height, width, layers = img.shape
         size = (width, height)
         # 视频比音频多Ns
-        N = 0.9
+        N = 1
         time_l = int(AudioFileClip(v).duration) + N      
-        print(time_l)
+        print(time_l) 
+        fps_coef = 0.5
         video_path_out = video_path + k.replace(img_path, "") + ".mp4"
-        out = cv2.VideoWriter(video_path_out, cv2.VideoWriter_fourcc(*'mp4v'), 1/time_l, size)        
-        out.write(img)
+        out = cv2.VideoWriter(video_path_out, cv2.VideoWriter_fourcc(*'mp4v'),1*fps_coef, size) 
+        for i in range(0, ceil(time_l*fps_coef)):       
+            out.write(img)
         out.release()
         out_video[video_path_out] = v
     return out_video
+
+
 
 
 l_video_path = "./l_video/"
@@ -143,10 +147,17 @@ def video_add_audio(v_a_dict):
     for k, v in v_a_dict.items():
         video = VideoFileClip(k)
         audio = AudioFileClip(v)
+        print(video.duration)
+        print(audio.duration) 
         audio = concatenate_audioclips([blank_audio, audio])
-        videos = video.set_audio(audio)
+        print(audio.duration)
+        video = video.set_audio(audio)
+        print(video.duration)
+        print("********")
         lv_path = l_video_path + k.replace(video_path, "")
-        videos.write_videofile(lv_path, audio_codec='aac')
+        #video.set_duration(video.duration)
+        print(video.fps)
+        video.write_videofile(lv_path, audio_codec='aac', fps=1)
         audio.close()
         video.close()
         video_list.append(lv_path)
@@ -156,11 +167,10 @@ def video_add_audio(v_a_dict):
 def video_concatenate(video_list, out_path="./fin.mp4"):
     clip_list = []
     for vl in video_list:
-        clip_list.append(VideoFileClip(vl))
+        clip_list.append(VideoFileClip(vl).resize(width=640, height=360))
     videos = concatenate_videoclips(clip_list)
     videos.write_videofile(out_path, audio_codec='aac')
     return out_path
-
 
 
 
@@ -171,5 +181,15 @@ if __name__ == "__main__":
     i_v_dict = get_voice_dict(content_dict)
     v_a_dict = img_convert_video(i_v_dict) 
     video_list = video_add_audio(v_a_dict)
-    print(video_list)
     video_concatenate(video_list)
+    """ 
+    video = VideoFileClip("./video/0.jpg.mp4")
+    print(video.duration)
+    video.set_duration(video.duration)
+   
+    video.write_videofile("./l_video/1.jpg.mp4", audio_codec='aac')
+    video = VideoFileClip("./l_video/1.jpg.mp4")
+    print(video.duration)
+    #video_concatenate(video_list)
+    """
+
