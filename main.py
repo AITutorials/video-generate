@@ -1,97 +1,37 @@
+import os
 import fileinput
 # rpm --import http://li.nux.ro/download/nux/RPM-GPG-KEY-nux.ro
 # rpm -Uvh http://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm
 # yum install ffmpeg
 
-path = "./input.md"
+pdf_path = "./test1.pdf"
 img_path = "./img/"
 voice_path = "./voice/"
 video_path = "./video/"
 
 
-import cv2
-import numpy as np
 import urllib.request
 
-
-def get_content_dict(path):
-    content = list(map(lambda x: x.strip(), fileinput.FileInput(path)))
-    content_dict = dict()
-    for i, c in enumerate(content):
-        try:
-            if c[0] == "!" and content[i+1][0] != "!" and content[i+1]:
-                pic_url = c[:-1].replace("![在这里插入图片描述](", "")
-                res = urllib.request.urlopen(pic_url)
-                img = np.asarray(bytearray(res.read()), dtype="uint8")
-                img = cv2.imdecode(img, cv2.IMREAD_COLOR)
-                pic_name = img_path + str(i) + ".jpg"
-                cv2.imwrite(pic_name, img)   
-                content_dict[pic_name] = content[i+1]
-        except:
-            pass
-            
-    return content_dict
-
-'''
-import torch
-import torchaudio
-
-torch.backends.cudnn.enabled = False
-device = "cuda" if torch.cuda.is_available() else "cpu"
-# device = "cpu"
-# 传统合成器
-bundle = torchaudio.pipelines.TACOTRON2_WAVERNN_PHONE_LJSPEECH
-#bundle = torchaudio.pipelines.TACOTRON2_GRIFFINLIM_PHONE_LJSPEECH
-
-processor = bundle.get_text_processor()
-tacotron2 = bundle.get_tacotron2().to(device)
-vocoder = bundle.get_vocoder().to(device)
-
-def _get_voice_en(text, path):
-    """很慢的语音转换"""
-    with torch.inference_mode():
-        processed, lengths = processor(text)
-        processed = processed.to(device)
-        lengths = lengths.to(device)
-        spec, spec_lengths, _ = tacotron2.infer(processed, lengths)
-        waveforms, _ = vocoder(spec, spec_lengths)
-        torchaudio.save(path, waveforms.to("cpu"), vocoder.sample_rate)
-
-'''
-
-# 模型合成器
-'''
-waveglow = torch.hub.load(
-    "NVIDIA/DeepLearningExamples:torchhub",
-    "nvidia_waveglow",
-    model_math="fp32",
-    pretrained=False,
-)
-checkpoint = torch.hub.load_state_dict_from_url(
-    "https://api.ngc.nvidia.com/v2/models/nvidia/waveglowpyt_fp32/versions/1/files/nvidia_waveglowpyt_fp32_20190306.pth",  # noqa: E501
-    progress=False,
-    map_location=device,
-)
-state_dict = {key.replace("module.", ""): value for key, value in checkpoint["state_dict"].items()}
-
-waveglow.load_state_dict(state_dict)
-waveglow = waveglow.remove_weightnorm(waveglow)
-waveglow = waveglow.to(device)
-waveglow.eval()
-
-with torch.no_grad():
-    waveforms = waveglow.infer(spec)
-'''
+from pdf2image import convert_from_path
+# pip install pdf2image
+# https://github.com/Belval/pdf2image
+# conda install -c conda-forge poppler
 
 
+def pdf_convert_img(pdf_path, img_path):
+    images = convert_from_path(pdf_path, dpi=200)
+    for image in images:
+        if not os.path.exists(img_path):
+            os.makedirs(img_path)
+        image.save(img_path + f'{images.index(image)}.png', 'PNG')
 
 
+"""
 from paddlespeech.cli.tts.infer import TTSExecutor
 tts = TTSExecutor()
 
 def _get_voice_cn(text, path):
     tts(text=text, output=path)
-
 
 
 def get_voice_dict(content_dict):
@@ -101,15 +41,15 @@ def get_voice_dict(content_dict):
         _get_voice_cn(v, path)
         voice_dict[k] = path 
     return voice_dict
-
+"""
 
 import cv2
 import numpy as np
-import os
 
 from math import ceil
 
 from moviepy.editor import *
+
 
 def img_convert_video(i_v_dict):
     """{'./img/2.jpg': './voice/2.jpg.mp3', './img/6.jpg': './voice/6.jpg.mp3'}"""
@@ -175,13 +115,17 @@ def video_concatenate(video_list, out_path="./fin.mp4"):
 
 
 if __name__ == "__main__":
-    content_dict = get_content_dict(path)
-    print(content_dict)
-    print(len(content_dict))
-    i_v_dict = get_voice_dict(content_dict)
+    pdf_convert_img(pdf_path, img_path)
+    i_v_dict = dict()
+    for img in os.listdir(img_path):
+        i_v_dict[img_path + img] = voice_path + img.split(".")[0] + ".m4a"
+
+    print(i_v_dict) 
     v_a_dict = img_convert_video(i_v_dict) 
+    print(v_a_dict)
     video_list = video_add_audio(v_a_dict)
-    video_concatenate(video_list)
+    print(video_list)
+    #video_concatenate(video_list)
     """ 
     video = VideoFileClip("./video/0.jpg.mp4")
     print(video.duration)
